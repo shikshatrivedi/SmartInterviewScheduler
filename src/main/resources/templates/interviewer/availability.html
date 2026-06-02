@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>My Availability — Smart Interview Scheduler</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}"/>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">
+                <div class="brand-icon">🗓️</div>
+                <div class="brand-text"><h2>Smart Scheduler</h2><span>Interviewer Portal</span></div>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">Interviewer Panel</div>
+            <a th:href="@{/interviewer/dashboard}" class="nav-item"><span class="nav-icon">📊</span> Dashboard</a>
+            <a th:href="@{/interviewer/availability}" class="nav-item active"><span class="nav-icon">🕐</span> My Availability</a>
+            <a th:href="@{/interviewer/interviews}" class="nav-item"><span class="nav-icon">📅</span> My Interviews</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-card">
+                <div class="user-avatar" th:text="${#strings.substring(interviewer.fullName,0,1)}">I</div>
+                <div class="user-info">
+                    <div class="user-name" th:text="${interviewer.fullName}">Interviewer</div>
+                    <div class="user-role">Interviewer</div>
+                </div>
+                <a th:href="@{/auth/logout}" class="logout-btn" title="Logout">⏻</a>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <header class="top-header">
+            <div class="header-title">
+                <h1>My Availability</h1>
+                <p>Define your available interview time slots</p>
+            </div>
+            <div class="header-actions">
+                <!-- Notification Bell -->
+                <div style="position:relative;display:inline-block;margin-right:12px;">
+                    <button onclick="toggleNotifPanel()" style="background:none;border:none;cursor:pointer;font-size:22px;position:relative;">🔔
+                        <span th:if="${notifCount > 0}" th:text="${notifCount}"
+                              style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700;"></span>
+                    </button>
+                    <div id="notifPanel" style="display:none;position:absolute;right:0;top:36px;width:320px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:999;max-height:360px;overflow-y:auto;">
+                        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-weight:700;">Notifications</div>
+                        <div th:if="${#lists.isEmpty(notifications)}" style="padding:16px;color:var(--text-muted);text-align:center;">No new notifications 🎉</div>
+                        <div th:each="n : ${notifications}" style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;">
+                            <span th:utext="${n.message}"></span>
+                            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" th:text="${#temporals.format(n.createdAt,'dd MMM HH:mm')}"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+
+        <div class="page-body">
+            <div th:if="${successMsg}" class="alert alert-success">✅ <span th:text="${successMsg}"></span></div>
+            <div th:if="${errorMsg}"   class="alert alert-danger">⚠️ <span th:text="${errorMsg}"></span></div>
+
+            <!-- Add Slot Form -->
+            <div class="card" style="margin-bottom:24px;">
+                <div class="card-header">
+                    <h3>➕ Add Availability Slot</h3>
+                </div>
+                <div class="card-body">
+                    <form th:action="@{/interviewer/availability/add}" th:object="${availabilityDTO}" method="post">
+                        <input type="hidden" th:field="*{interviewerId}" th:value="${interviewer.id}"/>
+                        <div class="form-grid-3">
+                            <div class="form-group">
+                                <label class="form-label">Date *</label>
+                                <input type="date" th:field="*{availableDate}" class="form-control" required/>
+                                <div class="form-error" th:if="${#fields.hasErrors('availableDate')}" th:errors="*{availableDate}"></div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Start Time *</label>
+                                <input type="time" th:field="*{startTime}" class="form-control" required/>
+                                <div class="form-error" th:if="${#fields.hasErrors('startTime')}" th:errors="*{startTime}"></div>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">End Time *</label>
+                                <input type="time" th:field="*{endTime}" class="form-control" required/>
+                                <div class="form-error" th:if="${#fields.hasErrors('endTime')}" th:errors="*{endTime}"></div>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary">Add Slot</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Slots Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>🕐 My Availability Slots</h3>
+                    <span class="badge badge-primary" th:text="${slots.size()} + ' slots'"></span>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Date</th><th>Start Time</th><th>End Time</th><th>Status</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr th:if="${#lists.isEmpty(slots)}">
+                                <td colspan="5"><div class="empty-state">
+                                    <div class="empty-icon">🕐</div>
+                                    <h3>No slots yet</h3>
+                                    <p>Add your availability above.</p>
+                                </div></td>
+                            </tr>
+                            <tr th:each="slot : ${slots}">
+                                <td class="fw-600" th:text="${#temporals.format(slot.availableDate, 'dd MMM yyyy')}"></td>
+                                <td th:text="${slot.startTime}"></td>
+                                <td th:text="${slot.endTime}"></td>
+                                <td>
+                                    <span class="badge" th:classappend="${slot.booked} ? 'badge-danger' : 'badge-success'"
+                                          th:text="${slot.booked ? '🔒 Booked' : '✅ Free'}"></span>
+                                </td>
+                                <td>
+                                    <form th:action="@{/interviewer/availability/{id}/delete(id=${slot.id})}"
+                                          method="post" style="display:inline;"
+                                          th:if="${!slot.booked}"
+                                          onsubmit="return confirm('Remove this slot?')">
+                                        <button type="submit" class="btn btn-danger btn-sm">Remove</button>
+                                    </form>
+                                    <span th:if="${slot.booked}" class="text-muted text-sm">—</span>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    function toggleNotifPanel() {
+        const p = document.getElementById('notifPanel');
+        p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    }
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#notifPanel') && !e.target.closest('button'))
+            document.getElementById('notifPanel').style.display = 'none';
+    });
+</script>
+</body>
+</html>

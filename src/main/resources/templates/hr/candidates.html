@@ -1,0 +1,163 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Candidates — Smart Interview Scheduler</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}"/>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">
+                <div class="brand-icon">🗓️</div>
+                <div class="brand-text"><h2>Smart Scheduler</h2><span>HR Portal</span></div>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">HR Panel</div>
+            <a th:href="@{/hr/dashboard}"  class="nav-item"><span class="nav-icon">📊</span> Dashboard</a>
+            <a th:href="@{/hr/analytics}"  class="nav-item"><span class="nav-icon">📈</span> Analytics</a>
+            <a th:href="@{/hr/calendar}"   class="nav-item"><span class="nav-icon">📅</span> Calendar</a>
+            <a th:href="@{/hr/jobs}"       class="nav-item"><span class="nav-icon">💼</span> Job Postings</a>
+            <a th:href="@{/hr/candidates}" class="nav-item active"><span class="nav-icon">👤</span> Candidates</a>
+            <a th:href="@{/hr/schedule}"   class="nav-item"><span class="nav-icon">🕐</span> Schedule</a>
+            <a th:href="@{/hr/audit-logs}" class="nav-item"><span class="nav-icon">📋</span> Audit Logs</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-card">
+                <div class="user-avatar">H</div>
+                <div class="user-info">
+                    <div class="user-name" th:text="${hr.fullName}">HR</div>
+                    <div class="user-role">HR Manager</div>
+                </div>
+                <a th:href="@{/auth/logout}" class="logout-btn" title="Logout">⏻</a>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <header class="top-header">
+            <div class="header-title">
+                <h1>Candidate Applications</h1>
+                <p>Review and manage candidate pipeline</p>
+            </div>
+            <div class="header-actions">
+                <!-- Notification Bell -->
+                <div style="position:relative;display:inline-block;margin-right:12px;">
+                    <button onclick="toggleNotifPanel()" style="background:none;border:none;cursor:pointer;font-size:22px;position:relative;">🔔
+                        <span th:if="${notifCount > 0}" th:text="${notifCount}"
+                              style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700;"></span>
+                    </button>
+                    <div id="notifPanel" style="display:none;position:absolute;right:0;top:36px;width:320px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:999;max-height:360px;overflow-y:auto;">
+                        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-weight:700;">Notifications</div>
+                        <div th:if="${#lists.isEmpty(notifications)}" style="padding:16px;color:var(--text-muted);text-align:center;">No new notifications 🎉</div>
+                        <div th:each="n : ${notifications}" style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;">
+                            <span th:utext="${n.message}"></span>
+                            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" th:text="${#temporals.format(n.createdAt,'dd MMM HH:mm')}"></div>
+                        </div>
+                    </div>
+                </div>
+                <a th:href="@{/hr/jobs}" class="btn btn-primary btn-sm">➕ Post New Job</a>
+            </div>
+        </header>
+
+        <div class="page-body">
+            <div th:if="${successMsg}" class="alert alert-success">✅ <span th:text="${successMsg}"></span></div>
+            <div th:if="${errorMsg}"   class="alert alert-danger">⚠️ <span th:text="${errorMsg}"></span></div>
+
+            <div class="card">
+                <div class="card-header">
+                    <h3>👤 Pipeline Management</h3>
+                    <div style="display:flex;gap:8px;align-items:center;">
+                        <span class="badge badge-primary" th:text="${applications.size()} + ' total'"></span>
+                    </div>
+                </div>
+
+                <!-- Search / Filter Bar -->
+                <form th:action="@{/hr/candidates}" method="get" style="padding:16px;display:flex;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border);">
+                    <input type="text" name="search" placeholder="🔍 Search name or email..."
+                           class="form-control" style="flex:1;min-width:200px;"
+                           th:value="${search}"/>
+                    <select name="statusFilter" class="form-control form-select" style="min-width:180px;">
+                        <option value="">All Statuses</option>
+                        <option th:each="s : ${applicationStatuses}" th:value="${s}" th:text="${s}"
+                                th:selected="${s.name() == statusFilter}"></option>
+                    </select>
+                    <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+                    <a th:href="@{/hr/candidates}" class="btn btn-outline btn-sm">Reset</a>
+                </form>
+
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Candidate</th><th>Job</th><th>Applied</th><th>Status</th><th>Resume</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr th:if="${#lists.isEmpty(applications)}">
+                                <td colspan="6"><div class="empty-state">
+                                    <div class="empty-icon">👤</div>
+                                    <h3>No candidates found</h3>
+                                    <p>Try adjusting your search or filters.</p>
+                                </div></td>
+                            </tr>
+                            <tr th:each="app : ${applications}">
+                                <td>
+                                    <div class="fw-600" th:text="${app.candidate.fullName}"></div>
+                                    <div class="text-sm text-muted" th:text="${app.candidate.email}"></div>
+                                </td>
+                                <td>
+                                    <div class="fw-600" th:text="${app.job.title}"></div>
+                                    <div class="text-sm text-muted" th:text="${app.job.department}"></div>
+                                </td>
+                                <td class="text-sm" th:text="${#temporals.format(app.appliedAt, 'dd MMM yyyy')}"></td>
+                                <td>
+                                    <span class="badge"
+                                          th:classappend="${app.status.name() == 'APPLIED'} ? 'badge-info' :
+                                                          (${app.status.name() == 'SHORTLISTED'} ? 'badge-warning' :
+                                                          (${app.status.name() == 'INTERVIEW_SCHEDULED'} ? 'badge-primary' :
+                                                          (${app.status.name() == 'SELECTED'} ? 'badge-success' : 'badge-danger')))"
+                                          th:text="${app.status}"></span>
+                                </td>
+                                <td>
+                                    <a th:if="${app.resumePath != null and !app.resumePath.isEmpty()}"
+                                       th:href="@{/hr/applications/{id}/resume(id=${app.id})}"
+                                       class="btn btn-outline btn-xs" title="Download Resume">📄 View PDF</a>
+                                    <span th:if="${app.resumePath == null or app.resumePath.isEmpty()}" class="text-muted text-xs">No resume</span>
+                                </td>
+                                <td>
+                                    <div style="display:flex;gap:4px;">
+                                        <form th:action="@{/hr/applications/{id}/shortlist(id=${app.id})}"
+                                              method="post" th:if="${app.status.name() == 'APPLIED'}">
+                                            <button type="submit" class="btn btn-warning btn-sm">Shortlist</button>
+                                        </form>
+                                        <a th:href="@{/hr/schedule(applicationId=${app.id},interviewerId='')}" class="btn btn-primary btn-sm"
+                                           th:if="${app.status.name() == 'SHORTLISTED'}">Schedule</a>
+                                        <form th:action="@{/hr/applications/{id}/reject(id=${app.id})}"
+                                              method="post" th:if="${app.status.name() == 'APPLIED' || app.status.name() == 'SHORTLISTED'}"
+                                              onsubmit="return confirm('Reject this application?')">
+                                            <button type="submit" class="btn btn-danger btn-sm">Reject</button>
+                                        </form>
+                                    </div>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    function toggleNotifPanel() {
+        const p = document.getElementById('notifPanel');
+        p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    }
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#notifPanel') && !e.target.closest('button'))
+            document.getElementById('notifPanel').style.display = 'none';
+    });
+</script>
+</body>
+</html>

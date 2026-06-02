@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org"
+      xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Schedule Interviews — HR</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}"/>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">
+                <div class="brand-icon">🗓️</div>
+                <div class="brand-text"><h2>Smart Scheduler</h2><span>HR Portal</span></div>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">HR Panel</div>
+            <a th:href="@{/hr/dashboard}"  class="nav-item"><span class="nav-icon">📊</span> Dashboard</a>
+            <a th:href="@{/hr/analytics}"  class="nav-item"><span class="nav-icon">📈</span> Analytics</a>
+            <a th:href="@{/hr/calendar}"   class="nav-item"><span class="nav-icon">📅</span> Calendar</a>
+            <a th:href="@{/hr/jobs}"       class="nav-item"><span class="nav-icon">💼</span> Job Postings</a>
+            <a th:href="@{/hr/candidates}" class="nav-item"><span class="nav-icon">👤</span> Candidates</a>
+            <a th:href="@{/hr/schedule}"   class="nav-item active"><span class="nav-icon">🕐</span> Schedule</a>
+            <a th:href="@{/hr/audit-logs}" class="nav-item"><span class="nav-icon">📋</span> Audit Logs</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-card">
+                <div class="user-avatar">H</div>
+                <div class="user-info">
+                    <div class="user-name" sec:authentication="name">HR</div>
+                    <div class="user-role">HR Manager</div>
+                </div>
+                <a th:href="@{/auth/logout}" class="logout-btn">⏻</a>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <header class="top-header">
+            <div class="header-title">
+                <h1>Smart Interview Scheduling</h1>
+                <p>Smart workload-balanced conflict-free scheduling</p>
+            </div>
+            <div class="header-actions">
+                <a th:href="@{/hr/export/interviews}" class="btn btn-outline btn-sm">📄 Export PDF</a>
+                <a th:href="@{/hr/calendar}" class="btn btn-outline btn-sm">📅 Calendar View</a>
+            </div>
+        </header>
+
+        <div class="page-body">
+            <div th:if="${successMsg}" class="alert alert-success">✅ <span th:text="${successMsg}"></span></div>
+            <div th:if="${errorMsg}" class="alert alert-danger">⚠️ <span th:text="${errorMsg}"></span></div>
+
+            <!-- Scheduling Engine Form -->
+            <div class="card mb-6" style="margin-bottom:24px;">
+                <div class="card-header">
+                    <h3>🤖 Smart Scheduling Engine</h3>
+                    <span class="badge badge-primary">Workload-Balanced + Greedy Slot Algorithm</span>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info">
+                        <span>💡</span>
+                        <span>
+                            <strong>Auto-assign mode:</strong> Leave date/time blank to let the engine automatically pick the earliest available conflict-free slot.<br/>
+                            <strong>Exact-slot mode:</strong> Provide preferred date and time window to schedule in a specific slot.
+                        </span>
+                    </div>
+
+                    <form th:action="@{/hr/schedule}" th:object="${scheduleRequest}" method="post">
+                        <div class="form-grid">
+                            <div class="form-group form-full">
+                                <label class="form-label">Application (Candidate → Job) *</label>
+                                <select th:field="*{applicationId}" class="form-control form-select" required>
+                                    <option value="">-- Select Application --</option>
+                                    <option th:each="app : ${applications}"
+                                            th:value="${app.id}"
+                                            th:text="${app.candidate.fullName} + ' → ' + ${app.job.title} + ' [' + ${app.status} + ']'">
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="form-group form-full">
+                                <label class="form-label">Interviewer *</label>
+                                <select th:field="*{interviewerId}" class="form-control form-select" required>
+                                    <option value="">-- Select Interviewer --</option>
+                                    <option th:each="iv : ${interviewers}"
+                                            th:value="${iv.id}"
+                                            th:text="${iv.fullName} + ' (' + ${iv.department ?: 'N/A'} + ')'">
+                                    </option>
+                                </select>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Preferred Date <span class="text-muted">(optional)</span></label>
+                                <input type="date" th:field="*{preferredDate}" class="form-control"/>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Start Time <span class="text-muted">(optional)</span></label>
+                                <input type="time" th:field="*{preferredStartTime}" class="form-control"/>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">End Time <span class="text-muted">(optional)</span></label>
+                                <input type="time" th:field="*{preferredEndTime}" class="form-control"/>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label">Notes</label>
+                                <input type="text" th:field="*{notes}" class="form-control" placeholder="Any special notes..."/>
+                            </div>
+                        </div>
+                        <button type="submit" class="btn btn-primary btn-lg"
+                                style="margin-top:8px;">⚡ Schedule Interview</button>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Scheduled Interviews Table -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>📋 Scheduled Interviews</h3>
+                    <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+                        <span class="badge badge-primary" th:text="${interviews.size()} + ' total'"></span>
+                    </div>
+                </div>
+                <!-- Search / Filter Bar -->
+                <form th:action="@{/hr/schedule}" method="get" style="padding:16px;display:flex;gap:12px;flex-wrap:wrap;border-bottom:1px solid var(--border);">
+                    <input type="text" name="candidateName" placeholder="🔍 Candidate name..."
+                           class="form-control" style="flex:1;min-width:160px;"
+                           th:value="${candidateName}"/>
+                    <select name="statusFilter" class="form-control form-select" style="min-width:150px;">
+                        <option value="">All Statuses</option>
+                        <option th:each="s : ${interviewStatuses}" th:value="${s}" th:text="${s}"
+                                th:selected="${s.name() == statusFilter}"></option>
+                    </select>
+                    <input type="date" name="fromDate" class="form-control" style="min-width:140px;"
+                           th:value="${fromDate}"/>
+                    <input type="date" name="toDate"   class="form-control" style="min-width:140px;"
+                           th:value="${toDate}"/>
+                    <button type="submit" class="btn btn-primary btn-sm">Filter</button>
+                    <a th:href="@{/hr/schedule}" class="btn btn-outline btn-sm">Reset</a>
+                </form>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>#</th><th>Candidate</th><th>Job</th><th>Interviewer</th>
+                                <th>Date</th><th>Time Slot</th><th>Status</th><th>Actions</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr th:if="${#lists.isEmpty(interviews)}">
+                                <td colspan="8"><div class="empty-state">
+                                    <div class="empty-icon">📅</div>
+                                    <h3>No interviews scheduled yet</h3></div></td>
+                            </tr>
+                            <tr th:each="iv : ${interviews}">
+                                <td th:text="${iv.id}"></td>
+                                <td>
+                                    <div class="fw-600" th:text="${iv.candidate.fullName}"></div>
+                                    <div class="text-sm text-muted" th:text="${iv.candidate.email}"></div>
+                                </td>
+                                <td th:text="${iv.job.title}"></td>
+                                <td th:text="${iv.interviewer.fullName}"></td>
+                                <td th:text="${iv.availability.availableDate}"></td>
+                                <td>
+                                    <span class="fw-600" th:text="${iv.availability.startTime}"></span>
+                                    <span class="text-muted"> – </span>
+                                    <span th:text="${iv.availability.endTime}"></span>
+                                </td>
+                                <td>
+                                    <span class="badge"
+                                          th:classappend="${iv.status.name() == 'SCHEDULED'} ? 'badge-primary' :
+                                                          (${iv.status.name() == 'COMPLETED'} ? 'badge-success' :
+                                                          (${iv.status.name() == 'CANCELLED'} ? 'badge-danger' :
+                                                          (${iv.status.name() == 'RESCHEDULED'} ? 'badge-warning' : 'badge-muted')))"
+                                          th:text="${iv.status}"></span>
+                                </td>
+                                <td>
+                                    <a th:href="@{/hr/interviews/{id}/reschedule(id=${iv.id})}"
+                                       class="btn btn-warning btn-sm"
+                                       th:if="${iv.status.name() != 'CANCELLED' && iv.status.name() != 'COMPLETED'}">
+                                       Reschedule
+                                    </a>
+                                    <form th:action="@{/hr/interviews/{id}/cancel(id=${iv.id})}"
+                                          method="post" style="display:inline;"
+                                          th:if="${iv.status.name() != 'CANCELLED' && iv.status.name() != 'COMPLETED'}"
+                                          onsubmit="return confirm('Cancel this interview?')">
+                                        <button type="submit" class="btn btn-danger btn-sm">Cancel</button>
+                                    </form>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

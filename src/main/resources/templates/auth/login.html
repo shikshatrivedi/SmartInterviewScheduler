@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Login — Smart Interview Scheduler</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}"/>
+</head>
+<body>
+<div class="auth-page">
+    <div class="auth-card">
+        <div class="auth-logo">
+            <div class="logo-icon">🗓️</div>
+            <h1>Smart Scheduler</h1>
+            <p>Sign in to your account to continue</p>
+        </div>
+
+        <!-- Alerts -->
+        <div th:if="${errorMsg}" class="alert alert-danger">
+            <span>⚠️</span>
+            <span th:text="${errorMsg}"></span>
+        </div>
+        <div th:if="${successMsg}" class="alert alert-success">
+            <span>✅</span>
+            <span th:text="${successMsg}"></span>
+        </div>
+        <div th:if="${param.registered}" class="alert alert-success">
+            <span>✅</span>
+            <span>Account created! Please log in.</span>
+        </div>
+
+        <!-- Login Form -->
+        <form th:action="@{/auth/login}" th:object="${loginDTO}" method="post">
+            <div class="form-group">
+                <label class="form-label" for="email">Email Address</label>
+                <input type="email" id="email" th:field="*{email}"
+                       class="form-control" placeholder="you@company.com" required autofocus/>
+                <div class="form-error" th:if="${#fields.hasErrors('email')}" th:errors="*{email}"></div>
+            </div>
+
+            <div class="form-group">
+                <label class="form-label" for="password">Password</label>
+                <input type="password" id="password" th:field="*{password}"
+                       class="form-control" placeholder="••••••••" required/>
+                <div class="form-error" th:if="${#fields.hasErrors('password')}" th:errors="*{password}"></div>
+            </div>
+
+            <button type="submit" class="btn btn-primary btn-lg w-100"
+                    style="width:100%; margin-top:8px;">Sign In →</button>
+        </form>
+
+        <div class="auth-divider">or</div>
+
+        <p style="text-align:center; font-size:.85rem; color:var(--text-secondary);">
+            Don't have an account?
+            <a th:href="@{/auth/register}" style="font-weight:600;">Register here</a>
+        </p>
+
+        <!-- Demo Credentials -->
+        <div style="margin-top:20px; background:var(--bg-base); border-radius:var(--radius-sm);
+                    padding:14px; border:1px solid var(--border);">
+            <p style="font-size:.72rem; font-weight:700; color:var(--text-secondary);
+                      text-transform:uppercase; letter-spacing:.05em; margin-bottom:8px;">
+                Demo Credentials
+            </p>
+            <div style="display:grid; grid-template-columns:1fr 1fr; gap:6px; font-size:.78rem;">
+                <div><strong>Admin:</strong> admin@scheduler.com</div>
+                <div>Admin@123</div>
+                <div><strong>HR:</strong> hr@scheduler.com</div>
+                <div>Hr@12345</div>
+                <div><strong>Interviewer:</strong> interviewer@scheduler.com</div>
+                <div>Interview@123</div>
+                <div><strong>Candidate:</strong> candidate@scheduler.com</div>
+                <div>Candidate@123</div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

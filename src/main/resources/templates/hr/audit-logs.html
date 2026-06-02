@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Audit Logs — Smart Interview Scheduler</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}"/>
+    <style>
+        .log-badge { padding: 3px 10px; border-radius: 20px; font-size: 11px; font-weight: 700; }
+        .log-INTERVIEW_SCHEDULED   { background: #dbeafe; color: #1d4ed8; }
+        .log-INTERVIEW_CANCELLED   { background: #fee2e2; color: #991b1b; }
+        .log-INTERVIEW_RESCHEDULED { background: #ffedd5; color: #c2410c; }
+        .log-FEEDBACK_SUBMITTED    { background: #dcfce7; color: #166534; }
+        .log-JOB_CREATED           { background: #f3e8ff; color: #6b21a8; }
+        .log-JOB_UPDATED           { background: #e0e7ff; color: #3730a3; }
+        .log-JOB_DELETED           { background: #fee2e2; color: #991b1b; }
+        .log-CANDIDATE_SHORTLISTED { background: #fef9c3; color: #713f12; }
+        .log-CANDIDATE_REJECTED    { background: #fee2e2; color: #991b1b; }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">
+                <div class="brand-icon">🗓️</div>
+                <div class="brand-text"><h2>Smart Scheduler</h2><span>HR Portal</span></div>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">HR Panel</div>
+            <a th:href="@{/hr/dashboard}"  class="nav-item"><span class="nav-icon">📊</span> Dashboard</a>
+            <a th:href="@{/hr/analytics}"  class="nav-item"><span class="nav-icon">📈</span> Analytics</a>
+            <a th:href="@{/hr/calendar}"   class="nav-item"><span class="nav-icon">📅</span> Calendar</a>
+            <a th:href="@{/hr/jobs}"       class="nav-item"><span class="nav-icon">💼</span> Job Postings</a>
+            <a th:href="@{/hr/candidates}" class="nav-item"><span class="nav-icon">👤</span> Candidates</a>
+            <a th:href="@{/hr/schedule}"   class="nav-item"><span class="nav-icon">🕐</span> Schedule</a>
+            <a th:href="@{/hr/audit-logs}" class="nav-item active"><span class="nav-icon">📋</span> Audit Logs</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-card">
+                <div class="user-avatar">H</div>
+                <div class="user-info">
+                    <div class="user-name" th:text="${hr.fullName}">HR</div>
+                    <div class="user-role">HR Manager</div>
+                </div>
+                <a th:href="@{/auth/logout}" class="logout-btn" title="Logout">⏻</a>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <header class="top-header">
+            <div class="header-title">
+                <h1>📋 Audit Logs</h1>
+                <p>Complete trail of your actions in the system</p>
+            </div>
+        </header>
+
+        <div class="page-body">
+            <div class="card">
+                <div class="card-header">
+                    <h3>🔍 Activity History</h3>
+                    <span class="badge badge-info" th:text="${logs.size() + ' records'}">0 records</span>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Action</th>
+                                <th>Target</th>
+                                <th>Details</th>
+                                <th>Time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr th:if="${#lists.isEmpty(logs)}">
+                                <td colspan="5">
+                                    <div class="empty-state">
+                                        <div class="empty-icon">📭</div>
+                                        <h3>No audit logs yet</h3>
+                                        <p>Actions you take will appear here</p>
+                                    </div>
+                                </td>
+                            </tr>
+                            <tr th:each="log, stat : ${logs}">
+                                <td th:text="${stat.count}"></td>
+                                <td>
+                                    <span class="log-badge"
+                                          th:classappend="'log-' + ${log.action}"
+                                          th:text="${log.action.replace('_',' ')}"></span>
+                                </td>
+                                <td>
+                                    <span th:text="${log.targetType}"></span>
+                                    <span th:if="${log.targetId != null}"
+                                          class="text-muted text-sm" th:text="' #' + ${log.targetId}"></span>
+                                </td>
+                                <td class="text-sm" th:text="${log.details}"></td>
+                                <td class="text-sm text-muted"
+                                    th:text="${#temporals.format(log.createdAt,'dd MMM yyyy HH:mm')}"></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+</body>
+</html>

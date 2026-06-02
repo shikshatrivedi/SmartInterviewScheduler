@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>My Dashboard — Candidate</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}"/>
+    <style>
+        /* ── Status Timeline ─────────────────── */
+        .status-timeline { display:flex; align-items:center; gap:0; margin:16px 0 8px; }
+        .st-step { display:flex; flex-direction:column; align-items:center; flex:1; }
+        .st-circle { width:32px; height:32px; border-radius:50%; border:2px solid var(--border);
+                     background:var(--bg); display:flex;align-items:center;justify-content:center;
+                     font-size:14px; font-weight:700; color:var(--text-muted); transition:.3s; }
+        .st-circle.done  { background:#22c55e; border-color:#22c55e; color:white; }
+        .st-circle.active{ background:#3b82f6; border-color:#3b82f6; color:white; box-shadow:0 0 0 4px rgba(59,130,246,.2); }
+        .st-label { font-size:10px; color:var(--text-muted); margin-top:4px; text-align:center; white-space:nowrap; }
+        .st-label.done  { color:#22c55e; font-weight:600; }
+        .st-label.active{ color:#3b82f6; font-weight:600; }
+        .st-line { flex:1; height:2px; background:var(--border); margin-top:-20px; }
+        .st-line.done { background:#22c55e; }
+        /* ── Resume upload ───────────────────── */
+        .resume-card { background:var(--surface-2,#f8f9fb); border:2px dashed var(--border); border-radius:12px;
+                       padding:16px; margin-top:12px; }
+        .upload-label { display:flex;align-items:center;gap:8px;cursor:pointer;font-size:14px;color:var(--text-muted); }
+        .upload-label:hover { color:var(--primary); }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">
+                <div class="brand-icon">🗓️</div>
+                <div class="brand-text"><h2>Smart Scheduler</h2><span>Candidate Portal</span></div>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">My Account</div>
+            <a th:href="@{/candidate/dashboard}" class="nav-item active"><span class="nav-icon">📊</span> Dashboard</a>
+            <a th:href="@{/candidate/jobs}"      class="nav-item"><span class="nav-icon">💼</span> Browse Jobs</a>
+            <a th:href="@{/candidate/status}"    class="nav-item"><span class="nav-icon">📋</span> My Applications</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-card">
+                <div class="user-avatar">C</div>
+                <div class="user-info">
+                    <div class="user-name" th:text="${candidate.fullName}">Candidate</div>
+                    <div class="user-role">Candidate</div>
+                </div>
+                <a th:href="@{/auth/logout}" class="logout-btn" title="Logout">⏻</a>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <header class="top-header">
+            <div class="header-title">
+                <h1 th:text="'Welcome back, ' + ${candidate.fullName} + '!'">Welcome!</h1>
+                <p>Track your job applications and interview status</p>
+            </div>
+            <div class="header-actions">
+                <!-- Notification Bell -->
+                <div style="position:relative;display:inline-block;margin-right:12px;">
+                    <button onclick="toggleNotifPanel()" style="background:none;border:none;cursor:pointer;font-size:22px;position:relative;">🔔
+                        <span th:if="${notifCount > 0}" th:text="${notifCount}"
+                              style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700;"></span>
+                    </button>
+                    <div id="notifPanel" style="display:none;position:absolute;right:0;top:36px;width:320px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:999;max-height:360px;overflow-y:auto;">
+                        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-weight:700;">🔔 Notifications</div>
+                        <div th:if="${#lists.isEmpty(notifications)}" style="padding:16px;color:var(--text-muted);text-align:center;">All caught up! 🎉</div>
+                        <div th:each="n : ${notifications}" style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;">
+                            <span th:utext="${n.message}"></span>
+                            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" th:text="${#temporals.format(n.createdAt,'dd MMM HH:mm')}"></div>
+                        </div>
+                    </div>
+                </div>
+                <a th:href="@{/candidate/jobs}" class="btn btn-primary btn-sm">🔍 Browse Jobs</a>
+            </div>
+        </header>
+
+        <div class="page-body">
+            <!-- Stats -->
+            <div class="stats-grid">
+                <div class="stat-card">
+                    <div class="stat-icon cyan">📨</div>
+                    <div class="stat-info">
+                        <div class="stat-value" th:text="${totalApplications}">0</div>
+                        <div class="stat-label">Total Applications</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon amber">⏳</div>
+                    <div class="stat-info">
+                        <div class="stat-value" th:text="${pendingApplications}">0</div>
+                        <div class="stat-label">Pending Review</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon blue">📅</div>
+                    <div class="stat-info">
+                        <div class="stat-value" th:text="${scheduledInterviews}">0</div>
+                        <div class="stat-label">Upcoming Interviews</div>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon green">✅</div>
+                    <div class="stat-info">
+                        <div class="stat-value" th:text="${completedInterviews}">0</div>
+                        <div class="stat-label">Completed</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Status Timeline Per Application -->
+            <div class="card">
+                <div class="card-header">
+                    <h3>📌 Application Status Timeline</h3>
+                    <a th:href="@{/candidate/status}" class="btn btn-outline btn-sm">View All</a>
+                </div>
+                <div class="card-body">
+                    <div th:if="${#lists.isEmpty(recentApplications)}" class="empty-state">
+                        <div class="empty-icon">📭</div>
+                        <h3>No applications yet</h3>
+                        <p>Start by browsing open job positions.</p>
+                        <a th:href="@{/candidate/jobs}" class="btn btn-primary" style="margin-top:12px;">Browse Jobs →</a>
+                    </div>
+
+                    <div th:each="app : ${recentApplications}" style="margin-bottom:28px;padding-bottom:24px;border-bottom:1px solid var(--border);">
+                        <div style="display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:8px;">
+                            <div>
+                                <div class="fw-600" th:text="${app.job.title}"></div>
+                                <div class="text-sm text-muted" th:text="${app.job.department}"></div>
+                            </div>
+                            <span class="badge"
+                                  th:classappend="${app.status.name() == 'APPLIED'}          ? 'badge-info'    :
+                                                  (${app.status.name() == 'SHORTLISTED'}      ? 'badge-warning' :
+                                                  (${app.status.name() == 'INTERVIEW_SCHEDULED'} ? 'badge-primary' :
+                                                  (${app.status.name() == 'SELECTED'}         ? 'badge-success' : 'badge-danger')))"
+                                  th:text="${app.status}"></span>
+                        </div>
+
+                        <!-- Stepper Timeline -->
+                        <div class="status-timeline">
+                            <!-- Step 1: Applied -->
+                            <div class="st-step">
+                                <div class="st-circle done">✓</div>
+                                <div class="st-label done">Applied</div>
+                            </div>
+                            <div class="st-line" th:classappend="${app.status.name() != 'APPLIED'} ? 'done' : ''"></div>
+                            <!-- Step 2: Shortlisted -->
+                            <div class="st-step">
+                                <div class="st-circle"
+                                     th:classappend="${app.status.name() == 'SHORTLISTED'} ? 'active' :
+                                                     (${app.status.name() != 'APPLIED'} ? 'done' : '')">
+                                    <span th:text="${app.status.name() == 'SHORTLISTED'} ? '2' :
+                                                   (${app.status.name() != 'APPLIED'} ? '✓' : '2')"></span>
+                                </div>
+                                <div class="st-label" th:classappend="${app.status.name() == 'SHORTLISTED'} ? 'active' :
+                                                                       (${app.status.name() != 'APPLIED'} ? 'done' : '')">Shortlisted</div>
+                            </div>
+                            <div class="st-line" th:classappend="${app.status.name() == 'INTERVIEW_SCHEDULED' or app.status.name() == 'COMPLETED' or app.status.name() == 'SELECTED' or app.status.name() == 'REJECTED'} ? 'done' : ''"></div>
+                            <!-- Step 3: Scheduled -->
+                            <div class="st-step">
+                                <div class="st-circle"
+                                     th:classappend="${app.status.name() == 'INTERVIEW_SCHEDULED'} ? 'active' :
+                                                     (${app.status.name() == 'COMPLETED' or app.status.name() == 'SELECTED' or app.status.name() == 'REJECTED'} ? 'done' : '')">
+                                    <span th:text="${app.status.name() == 'INTERVIEW_SCHEDULED'} ? '3' :
+                                                   (${app.status.name() == 'COMPLETED' or app.status.name() == 'SELECTED' or app.status.name() == 'REJECTED'} ? '✓' : '3')"></span>
+                                </div>
+                                <div class="st-label" th:classappend="${app.status.name() == 'INTERVIEW_SCHEDULED'} ? 'active' :
+                                                                       (${app.status.name() == 'COMPLETED' or app.status.name() == 'SELECTED' or app.status.name() == 'REJECTED'} ? 'done' : '')">Scheduled</div>
+                            </div>
+                            <div class="st-line" th:classappend="${app.status.name() == 'SELECTED' or app.status.name() == 'REJECTED'} ? 'done' : ''"></div>
+                            <!-- Step 4: Completed -->
+                            <div class="st-step">
+                                <div class="st-circle"
+                                     th:classappend="${app.status.name() == 'SELECTED' or app.status.name() == 'REJECTED'} ? 'done' : ''">
+                                    <span th:text="${app.status.name() == 'SELECTED' or app.status.name() == 'REJECTED'} ? '✓' : '4'"></span>
+                                </div>
+                                <div class="st-label" th:classappend="${app.status.name() == 'SELECTED' or app.status.name() == 'REJECTED'} ? 'done' : ''">Completed</div>
+                            </div>
+                            <div class="st-line" th:classappend="${app.status.name() == 'SELECTED'} ? 'done' : ''"></div>
+                            <!-- Step 5: Selected -->
+                            <div class="st-step">
+                                <div class="st-circle" th:classappend="${app.status.name() == 'SELECTED'} ? 'done' : ''">
+                                    <span th:text="${app.status.name() == 'SELECTED'} ? '🏆' : '5'"></span>
+                                </div>
+                                <div class="st-label" th:classappend="${app.status.name() == 'SELECTED'} ? 'done' : ''">Selected</div>
+                            </div>
+                        </div>
+
+                        <!-- Resume Upload -->
+                        <div class="resume-card">
+                            <div th:if="${app.resumePath != null and !app.resumePath.isEmpty()}"
+                                 style="display:flex;align-items:center;gap:12px;">
+                                <span style="color:#22c55e;font-size:18px;">📄</span>
+                                <span class="text-sm">Resume uploaded</span>
+                                <a th:href="@{/candidate/resume/download/{id}(id=${app.id})}"
+                                   class="btn btn-outline btn-sm">⬇️ Download</a>
+                            </div>
+                            <form th:if="${app.resumePath == null or app.resumePath.isEmpty()}"
+                                  th:action="@{/candidate/resume/upload}" method="post"
+                                  enctype="multipart/form-data"
+                                  style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;">
+                                <input type="hidden" name="applicationId" th:value="${app.id}"/>
+                                <label class="upload-label">
+                                    <span>📎</span>
+                                    <span>Upload Resume (PDF)</span>
+                                    <input type="file" name="file" accept=".pdf" style="display:none"
+                                           onchange="this.parentElement.querySelector('span:last-of-type').textContent = this.files[0]?.name || 'Upload Resume (PDF)'"/>
+                                </label>
+                                <button type="submit" class="btn btn-primary btn-sm">Upload</button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    function toggleNotifPanel() {
+        const p = document.getElementById('notifPanel');
+        p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    }
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#notifPanel') && !e.target.closest('button'))
+            document.getElementById('notifPanel').style.display = 'none';
+    });
+</script>
+</body>
+</html>

@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>My Interviews — Smart Interview Scheduler</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}"/>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">
+                <div class="brand-icon">🗓️</div>
+                <div class="brand-text"><h2>Smart Scheduler</h2><span>Interviewer Portal</span></div>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">Interviewer Panel</div>
+            <a th:href="@{/interviewer/dashboard}" class="nav-item"><span class="nav-icon">📊</span> Dashboard</a>
+            <a th:href="@{/interviewer/availability}" class="nav-item"><span class="nav-icon">🕐</span> My Availability</a>
+            <a th:href="@{/interviewer/interviews}" class="nav-item active"><span class="nav-icon">📅</span> My Interviews</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-card">
+                <div class="user-avatar" th:text="${#strings.substring(interviewer.fullName,0,1)}">I</div>
+                <div class="user-info">
+                    <div class="user-name" th:text="${interviewer.fullName}">Interviewer</div>
+                    <div class="user-role">Interviewer</div>
+                </div>
+                <a th:href="@{/auth/logout}" class="logout-btn" title="Logout">⏻</a>
+            </div>
+        </div>
+    </aside>
+    <div class="main-content">
+        <header class="top-header">
+            <div class="header-title">
+                <h1>My Interview Schedule</h1>
+                <p>All interviews assigned to you</p>
+            </div>
+            <div class="header-actions">
+                <!-- Notification Bell -->
+                <div style="position:relative;display:inline-block;margin-right:12px;">
+                    <button onclick="toggleNotifPanel()" style="background:none;border:none;cursor:pointer;font-size:22px;position:relative;">🔔
+                        <span th:if="${notifCount > 0}" th:text="${notifCount}"
+                              style="position:absolute;top:-4px;right:-4px;background:#ef4444;color:#fff;border-radius:50%;width:18px;height:18px;font-size:10px;display:flex;align-items:center;justify-content:center;font-weight:700;"></span>
+                    </button>
+                    <div id="notifPanel" style="display:none;position:absolute;right:0;top:36px;width:320px;background:var(--surface);border:1px solid var(--border);border-radius:12px;box-shadow:0 8px 32px rgba(0,0,0,.15);z-index:999;max-height:360px;overflow-y:auto;">
+                        <div style="padding:12px 16px;border-bottom:1px solid var(--border);font-weight:700;">Notifications</div>
+                        <div th:if="${#lists.isEmpty(notifications)}" style="padding:16px;color:var(--text-muted);text-align:center;">No new notifications 🎉</div>
+                        <div th:each="n : ${notifications}" style="padding:12px 16px;border-bottom:1px solid var(--border);font-size:13px;">
+                            <span th:utext="${n.message}"></span>
+                            <div style="font-size:11px;color:var(--text-muted);margin-top:4px;" th:text="${#temporals.format(n.createdAt,'dd MMM HH:mm')}"></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </header>
+        <div class="page-body">
+            <div th:if="${successMsg}" class="alert alert-success">✅ <span th:text="${successMsg}"></span></div>
+            <div th:if="${errorMsg}"   class="alert alert-danger">⚠️ <span th:text="${errorMsg}"></span></div>
+            <div class="card">
+                <div class="card-header">
+                    <h3>📅 All Assigned Interviews</h3>
+                    <span class="badge badge-primary" th:text="${interviews.size()} + ' interviews'"></span>
+                </div>
+                <div class="table-responsive">
+                    <table class="data-table">
+                        <thead>
+                            <tr><th>Candidate</th><th>Job</th><th>Date</th><th>Time</th><th>Status</th><th>Feedback</th><th>Action</th></tr>
+                        </thead>
+                        <tbody>
+                            <tr th:if="${#lists.isEmpty(interviews)}">
+                                <td colspan="7"><div class="empty-state"><div class="empty-icon">📅</div><h3>No interviews assigned</h3></div></td>
+                            </tr>
+                            <tr th:each="iv : ${interviews}">
+                                <td>
+                                    <div class="fw-600" th:text="${iv.candidate.fullName}"></div>
+                                    <div class="text-sm text-muted" th:text="${iv.candidate.email}"></div>
+                                </td>
+                                <td th:text="${iv.job.title}"></td>
+                                <td th:text="${#temporals.format(iv.availability.availableDate, 'dd MMM yyyy')}"></td>
+                                <td th:text="${iv.availability.startTime} + ' - ' + ${iv.availability.endTime}"></td>
+                                <td>
+                                    <span class="badge"
+                                          th:classappend="${iv.status.name() == 'SCHEDULED'} ? 'badge-primary' : (${iv.status.name() == 'COMPLETED'} ? 'badge-success' : (${iv.status.name() == 'CANCELLED'} ? 'badge-danger' : 'badge-warning'))"
+                                          th:text="${iv.status}"></span>
+                                </td>
+                                <td>
+                                    <span th:if="${iv.feedback != null}">
+                                        <span class="badge badge-success" th:text="${iv.feedback.result}"></span>
+                                        <div class="text-sm text-muted" th:text="'Tech: ' + ${iv.feedback.technicalScore} + '/10'"></div>
+                                    </span>
+                                    <span th:if="${iv.feedback == null}" class="text-muted text-sm">Pending</span>
+                                </td>
+                                <td>
+                                    <a th:href="@{/interviewer/feedback/{id}(id=${iv.id})}"
+                                       class="btn btn-primary btn-sm"
+                                       th:if="${iv.feedback == null && (iv.status.name() == 'SCHEDULED' || iv.status.name() == 'RESCHEDULED')}">
+                                        Feedback
+                                    </a>
+                                </td>
+                            </tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    function toggleNotifPanel() {
+        const p = document.getElementById('notifPanel');
+        p.style.display = p.style.display === 'none' ? 'block' : 'none';
+    }
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('#notifPanel') && !e.target.closest('button'))
+            document.getElementById('notifPanel').style.display = 'none';
+    });
+</script>
+</body>
+</html>

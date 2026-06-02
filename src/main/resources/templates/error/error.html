@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Error — Smart Interview Scheduler</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}"/>
+</head>
+<body>
+<div style="min-height:100vh; display:flex; align-items:center; justify-content:center;
+            background:var(--bg-base); padding:24px;">
+    <div style="text-align:center; max-width:480px;">
+        <div style="font-size:4rem; margin-bottom:16px;"
+             th:text="${errorCode == '404'} ? '🔍' : (${errorCode == '409'} ? '⚡' : (${errorCode == '403'} ? '🔒' : '💥'))">
+        </div>
+        <h1 style="font-size:4rem; font-weight:800; color:var(--text-primary); line-height:1;"
+            th:text="${errorCode ?: '500'}">500</h1>
+        <h2 style="font-size:1.3rem; font-weight:700; color:var(--text-secondary); margin:12px 0;"
+            th:text="${errorTitle ?: 'Something went wrong'}">Error</h2>
+        <p style="color:var(--text-muted); margin-bottom:28px; line-height:1.6;"
+           th:text="${errorMessage ?: 'An unexpected error occurred.'}">Message</p>
+        <div style="display:flex; gap:12px; justify-content:center;">
+            <a href="javascript:history.back()" class="btn btn-outline">← Go Back</a>
+            <a href="/" class="btn btn-primary">🏠 Home</a>
+        </div>
+    </div>
+</div>
+</body>
+</html>

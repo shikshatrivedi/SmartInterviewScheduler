@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Calendar — Smart Interview Scheduler</title>
+    <link rel="stylesheet" th:href="@{/css/main.css}"/>
+    <link  href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.css" rel="stylesheet"/>
+    <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.10/index.global.min.js"></script>
+    <style>
+        #calendar { background: var(--surface); border-radius: 16px; padding: 20px; border: 1px solid var(--border); }
+        .fc .fc-toolbar-title     { font-size: 18px; font-weight: 700; }
+        .fc .fc-button             { background: var(--primary); border-color: var(--primary); border-radius: 8px; }
+        .fc .fc-button:hover       { background: var(--primary-hover); border-color: var(--primary-hover); }
+        .fc .fc-event              { border-radius: 6px; font-size: 12px; padding: 2px 5px; cursor: pointer; }
+        .modal-overlay  { display:none;position:fixed;inset:0;background:rgba(0,0,0,.5);z-index:1000;align-items:center;justify-content:center; }
+        .modal-overlay.open { display:flex; }
+        .modal-box      { background:var(--surface);border-radius:16px;padding:32px;min-width:380px;max-width:500px;box-shadow:0 20px 60px rgba(0,0,0,.3); }
+        .modal-title    { font-size:18px;font-weight:700;margin-bottom:16px; }
+        .modal-row      { display:flex;gap:8px;margin-bottom:8px;font-size:14px; }
+        .modal-label    { color:var(--text-muted);min-width:90px; }
+        .legend-bar     { display:flex;gap:16px;margin-bottom:20px;flex-wrap:wrap; }
+        .legend-item    { display:flex;align-items:center;gap:6px;font-size:13px; }
+        .legend-dot     { width:12px;height:12px;border-radius:50%; }
+    </style>
+</head>
+<body>
+<div class="app-shell">
+    <aside class="sidebar">
+        <div class="sidebar-brand">
+            <div class="brand-logo">
+                <div class="brand-icon">🗓️</div>
+                <div class="brand-text"><h2>Smart Scheduler</h2><span>HR Portal</span></div>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section-title">HR Panel</div>
+            <a th:href="@{/hr/dashboard}"  class="nav-item"><span class="nav-icon">📊</span> Dashboard</a>
+            <a th:href="@{/hr/analytics}"  class="nav-item"><span class="nav-icon">📈</span> Analytics</a>
+            <a th:href="@{/hr/calendar}"   class="nav-item active"><span class="nav-icon">📅</span> Calendar</a>
+            <a th:href="@{/hr/jobs}"       class="nav-item"><span class="nav-icon">💼</span> Job Postings</a>
+            <a th:href="@{/hr/candidates}" class="nav-item"><span class="nav-icon">👤</span> Candidates</a>
+            <a th:href="@{/hr/schedule}"   class="nav-item"><span class="nav-icon">🕐</span> Schedule</a>
+            <a th:href="@{/hr/audit-logs}" class="nav-item"><span class="nav-icon">📋</span> Audit Logs</a>
+        </nav>
+        <div class="sidebar-footer">
+            <div class="user-card">
+                <div class="user-avatar">H</div>
+                <div class="user-info">
+                    <div class="user-name" th:text="${hr.fullName}">HR</div>
+                    <div class="user-role">HR Manager</div>
+                </div>
+                <a th:href="@{/auth/logout}" class="logout-btn" title="Logout">⏻</a>
+            </div>
+        </div>
+    </aside>
+
+    <div class="main-content">
+        <header class="top-header">
+            <div class="header-title">
+                <h1>📅 Interview Calendar</h1>
+                <p>Monthly &amp; weekly view of all scheduled interviews</p>
+            </div>
+            <div class="header-actions">
+                <a th:href="@{/hr/schedule}" class="btn btn-primary btn-sm">➕ Schedule Interview</a>
+            </div>
+        </header>
+
+        <div class="page-body">
+            <!-- Legend -->
+            <div class="legend-bar">
+                <div class="legend-item"><div class="legend-dot" style="background:#3b82f6"></div> Scheduled</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#22c55e"></div> Completed</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#ef4444"></div> Cancelled</div>
+                <div class="legend-item"><div class="legend-dot" style="background:#f97316"></div> Rescheduled</div>
+            </div>
+
+            <div id="calendar"></div>
+        </div>
+    </div>
+</div>
+
+<!-- Event Detail Modal -->
+<div class="modal-overlay" id="eventModal">
+    <div class="modal-box">
+        <div class="modal-title" id="modal-title">Interview Details</div>
+        <div class="modal-row"><span class="modal-label">Candidate:</span><span id="modal-candidate"></span></div>
+        <div class="modal-row"><span class="modal-label">Job:</span><span id="modal-job"></span></div>
+        <div class="modal-row"><span class="modal-label">Interviewer:</span><span id="modal-interviewer"></span></div>
+        <div class="modal-row"><span class="modal-label">Status:</span><span id="modal-status"></span></div>
+        <div class="modal-row"><span class="modal-label">Date/Time:</span><span id="modal-dt"></span></div>
+        <div style="margin-top:20px;text-align:right;">
+            <button onclick="closeModal()" class="btn btn-outline btn-sm">Close</button>
+        </div>
+    </div>
+</div>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const calendar = new FullCalendar.Calendar(document.getElementById('calendar'), {
+            initialView: 'dayGridMonth',
+            headerToolbar: {
+                left:   'prev,next today',
+                center: 'title',
+                right:  'dayGridMonth,timeGridWeek,timeGridDay'
+            },
+            events: function(info, successCallback, failureCallback) {
+                fetch('/hr/calendar/events?start=' + info.startStr.slice(0,10)
+                        + '&end=' + info.endStr.slice(0,10))
+                    .then(r => r.json())
+                    .then(data => successCallback(data))
+                    .catch(err => failureCallback(err));
+            },
+            eventClick: function(info) {
+                const parts = info.event.title.split(' — ');
+                const ep    = info.event.extendedProps;
+                document.getElementById('modal-title').textContent = '📅 ' + info.event.title;
+                document.getElementById('modal-candidate').textContent   = parts[0] || '—';
+                document.getElementById('modal-job').textContent         = ep.job || '—';
+                document.getElementById('modal-interviewer').textContent = ep.interviewer || '—';
+                document.getElementById('modal-status').textContent      = ep.status || '—';
+                document.getElementById('modal-dt').textContent =
+                    (info.event.start ? info.event.start.toLocaleString() : '—');
+                document.getElementById('eventModal').classList.add('open');
+            },
+            eventMouseEnter: function(info) { info.el.style.transform = 'scale(1.02)'; },
+            eventMouseLeave: function(info) { info.el.style.transform = ''; },
+            height: 'auto'
+        });
+        calendar.render();
+    });
+
+    function closeModal() {
+        document.getElementById('eventModal').classList.remove('open');
+    }
+    document.getElementById('eventModal').addEventListener('click', function(e) {
+        if (e.target === this) closeModal();
+    });
+</script>
+</body>
+</html>
